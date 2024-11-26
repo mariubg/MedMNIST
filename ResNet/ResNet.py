@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from ResBlock import ResBlock
+from ResNet.ResBlock import ResBlock
 
 class ResNet(nn.Module):
     def __init__(self, layers, num_classes = 1000):
@@ -11,13 +11,10 @@ class ResNet(nn.Module):
         self.bn1 = nn.BatchNorm2d(self.in_channels)
         self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.res_layers = []
-        for i in range(len(self.layers)):
-            if i == 0:
-                stride = 1
-            else:
-                stride = 2
-            self.res_layers.append(self.layer(64*2**i, self.layers[i], stride=stride))
+        self.res_layer1 = self.layer(64, 64, self.layers[0])
+        self.res_layer2 = self.layer(64, 128, self.layers[1], stride=2)
+        self.res_layer3 = self.layer(128, 256, self.layers[2], stride=2)
+        self.res_layer4 = self.layer(256, 512, self.layers[3], stride=2)
 
         self.avg = nn.AdaptiveAvgPool2d((1,1))
         self.fc = nn.Linear(512, num_classes)
@@ -26,7 +23,7 @@ class ResNet(nn.Module):
         layers = []
         layers.append(ResBlock(in_channels, out_channels, stride=stride))
         for i in range(1, nums):
-            layers.append(ResBlock(out_channels, out_channels, stride=stride))
+            layers.append(ResBlock(out_channels, out_channels))
         return nn.Sequential(*layers)
     
 
@@ -36,12 +33,12 @@ class ResNet(nn.Module):
         x = self.relu(x)
         x = self.maxpool(x)
 
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        x = self.res_layer1(x)
+        x = self.res_layer2(x)
+        x = self.res_layer3(x)
+        x = self.res_layer4(x)
 
-        x = self.avgpool(x)
+        x = self.avg(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)
 
